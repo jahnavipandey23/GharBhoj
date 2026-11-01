@@ -24,8 +24,8 @@ export default function Header() {
             </button>
           ))}
         </nav>
-        <button className="ib" aria-label="Search"><Icon name="search" /></button>
-        <button className="ib" aria-label="Show QR options" onClick={openWelcome}><Icon name="user" /></button>
+        {/* <button className="ib" aria-label="Search"><Icon name="search" /></button> */}
+        {/* <button className="ib" aria-label="Show QR options" onClick={openWelcome}><Icon name="user" /></button> */}
         <button className="btn sm" onClick={() => navigate(isAdmin ? '/admin' : '/login')}>{isAdmin ? 'Admin' : 'Sign In'}</button>
       </div>
     </header>
