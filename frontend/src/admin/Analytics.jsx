@@ -4,7 +4,7 @@ import { getOrdersByHour } from '../api/admin';
 const hourLabel = (h) => `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`;
 
 export default function Analytics() {
-  const { data } = useResourceOnce(getOrdersByHour); // [{ hour: 13, count: 9 }, ...]
+  const { data } = useResourceOnce(getOrdersByHour, 'orders-by-hour');// [{ hour: 13, count: 9 }, ...]
   const rows = data || [];
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
@@ -23,3 +23,5 @@ export default function Analytics() {
     </>
   );
 }
+
+

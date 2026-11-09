@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import {useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import DishImage from '../components/DishImage';
 import { useMenu } from '../hooks/useApi';
 import { useCart } from '../context/CartContext';
@@ -12,16 +12,17 @@ export default function OrderFood() {
   const navigate = useNavigate();
   const { data: menu } = useMenu();
   const { items, change, clear } = useCart();
- const { table, rememberOrder } = useSession();
+  const { table, rememberOrder, myOrderId } = useSession();
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Customer already has an active order: show its live queue page instead.
-
   const { lines, subtotal, gst, total } = summarize(menu || [], items);
 
   if (menu && !lines.length) {
+    // Customer already has an order and the cart is empty: show their live queue page.
+    if (myOrderId) return <Navigate to={`/queue/${myOrderId}`} replace />;
+
     return (
       <div className="wrap" style={{ textAlign: 'center', padding: '70px 0' }}>
         <h2 className="pg">Order Food</h2>

@@ -7,7 +7,7 @@ import { inr } from '../utils/format';
 
 export default function Dashboard() {
   const { data } = useOrders();
-  const { data: bookings } = useResourceOnce(listBookings);
+  const { data: bookings } = useResourceOnce(listBookings, 'bookings');
   const orders = data || [];
   const active = orders.filter((o) => o.status === 'queue' || o.status === 'prep').length;
 

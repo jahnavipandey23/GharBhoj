@@ -1,12 +1,14 @@
 import { createContext, useContext, useState } from 'react';
 import { login as loginRequest } from '../api/auth';
+import { clearCache } from '../hooks/cache';
 
 const SessionContext = createContext(null);
 
 export function SessionProvider({ children }) {
   // QR codes point to e.g. https://gharbhoj.in/?table=5
   const [table] = useState(() => new URLSearchParams(window.location.search).get('table') || '5');
-  const [welcomeOpen, setWelcomeOpen] = useState(true);
+ const [welcomeOpen, setWelcomeOpen] = useState(() => !localStorage.getItem('gb_order'));
+
   const [isAdmin, setIsAdmin] = useState(() => Boolean(localStorage.getItem('gb_token')));
   const [myOrderId, setMyOrderId] = useState(() => localStorage.getItem('gb_order'));
 
@@ -15,7 +17,7 @@ export function SessionProvider({ children }) {
     localStorage.setItem('gb_token', token);
     setIsAdmin(true);
   };
-  const logout = () => { localStorage.removeItem('gb_token'); setIsAdmin(false); };
+  const logout = () => { localStorage.removeItem('gb_token'); clearCache(); setIsAdmin(false); };
   const rememberOrder = (id) => {
     if (id) localStorage.setItem('gb_order', id); else localStorage.removeItem('gb_order');
     setMyOrderId(id);

@@ -13,6 +13,11 @@ export async function request(path, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
+    // Token expired: sign out and go to the login page
+    if (res.status === 401 && token && path !== '/auth/login') {
+      localStorage.removeItem('gb_token');
+      window.location.assign('/login');
+    }
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `Request failed (${res.status})`);
   }

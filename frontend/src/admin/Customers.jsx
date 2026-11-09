@@ -4,7 +4,7 @@ import { getCustomers } from '../api/admin';
 import { inr } from '../utils/format';
 
 export default function Customers() {
-  const { data } = useResourceOnce(getCustomers);
+  const { data } = useResourceOnce(getCustomers, 'customers');
   return (
     <>
       <div className="mh"><h2>Customers</h2></div>

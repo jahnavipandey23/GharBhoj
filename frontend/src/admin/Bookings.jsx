@@ -3,7 +3,7 @@ import { useResourceOnce } from '../hooks/useOnce';
 import { listBookings } from '../api/bookings';
 
 export default function Bookings() {
-  const { data } = useResourceOnce(listBookings);
+  const { data } = useResourceOnce(listBookings, 'bookings');
   return (
     <>
       <div className="mh"><h2>Table Bookings</h2></div>
