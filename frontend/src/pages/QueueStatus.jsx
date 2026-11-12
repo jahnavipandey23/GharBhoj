@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Icon from '../components/Icon';
 import StatusBadge from '../components/StatusBadge';
@@ -12,75 +13,79 @@ export default function QueueStatus() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { rememberOrder } = useSession();
-  const { data: order, loading, error } = useOrder(id); // refetches itself on every live update
+  const { data: order, loading, error, reload } = useOrder(id); // refetches itself on every live update
+
+  // The wait time counts down as food cooks, so refresh quietly every 30 seconds.
+  useEffect(() => {
+    const t = setInterval(reload, 30_000);
+    return () => clearInterval(t);
+  }, [reload]);
 
   if (loading) return <div className="wrap"><p className="note" style={{ padding: 40 }}>Loading your order…</p></div>;
   if (error || !order) return <div className="wrap"><h2 className="pg">Order not found</h2><button className="btn" onClick={() => { rememberOrder(null); navigate('/menu'); }}>Back to menu</button></div>;
 
   const step = STEP_INDEX[order.status];
   const isReady = order.status === 'ready' || order.status === 'done';
-const isDone = order.status === 'done';
+  const isDone = order.status === 'done';
+  const wait = Math.max(1, order.waitMinutes);
 
   return (
     <div className="wrap">
       <h2 className="pg">
-  {isDone ? 'Order Completed!' : 'Your Order is in Queue'}
-</h2>
+        {isDone ? 'Order Completed!' : 'Your Order is in Queue'}
+      </h2>
 
-<p className="sub">
-  {isDone
-    ? 'Thank you for ordering with GharBhoj!'
-    : 'We’ll keep you updated in real time. You can also track this page anytime.'}
-</p>
-     
-<div className="card">
-  {isDone ? (
-    <div style={{ textAlign: 'center', padding: '24px 12px' }}>
-      <Icon name="ok" size={42} />
-      <h2 style={{ marginTop: 12 }}>Your Order is Completed!</h2>
-      <p className="sub" style={{ marginTop: 8 }}>
-        Please pay your bill at the counter.
+      <p className="sub">
+        {isDone
+          ? 'Thank you for ordering with GharBhoj!'
+          : 'We’ll keep you updated in real time. You can also track this page anytime.'}
       </p>
-      <p className="note" style={{ marginTop: 8 }}>
-        Thank you for dining with GharBhoj!
-      </p>
-    </div>
-  ) : (
-    <>
-      <div className="vs">
-        <div>
-          <div className="note">Current Queue Position</div>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 6 }}>
-            <div className="big">#{order.queuePosition ?? order.no}</div>
-            <StatusBadge status={order.status} />
+
+      <div className="card">
+        {isDone ? (
+          <div style={{ textAlign: 'center', padding: '24px 12px' }}>
+            <Icon name="ok" size={42} />
+            <h2 style={{ marginTop: 12 }}>Your Order is Completed!</h2>
+            <p className="sub" style={{ marginTop: 8 }}>
+              Please pay your bill at the counter.
+            </p>
+            <p className="note" style={{ marginTop: 8 }}>
+              Thank you for dining with GharBhoj!
+            </p>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="vs">
+              <div>
+                <div className="note">Current Queue Position</div>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 6 }}>
+                  <div className="big">#{order.queuePosition ?? order.no}</div>
+                  <StatusBadge status={order.status} />
+                </div>
+              </div>
 
-        <div>
-          <div className="note">Estimated Wait Time</div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10, color: 'var(--mr)' }}>
-            <Icon name="clock" size={32} />
-            <span style={{ font: "600 26px 'Playfair Display',serif", color: 'var(--tx)' }}>
-              {isReady ? 'Ready now' : `${order.waitMinutes} – ${order.waitMinutes + 5} mins`}
-            </span>
-          </div>
-          <p className="note" style={{ margin: '10px 0 0' }}>
-  {isDone
-    ? 'Your order is completed. Please pay your bill at the counter.'
-    : 'Pay at the counter when your order is ready.'}
-</p>
-        </div>
+              <div>
+                <div className="note">Estimated Wait Time</div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10, color: 'var(--mr)' }}>
+                  <Icon name="clock" size={32} />
+                  <span style={{ font: "600 26px 'Playfair Display',serif", color: 'var(--tx)' }}>
+                    {isReady ? 'Ready now' : `${wait} – ${wait + 5} mins`}
+                  </span>
+                </div>
+                <p className="note" style={{ margin: '10px 0 0' }}>
+                  Based on the dishes in your order. Pay at the counter when your order is ready.
+                </p>
+              </div>
+            </div>
+
+            <div className="pr">
+              {STEPS.map((s, i) => (
+                <div key={s} className={i <= step ? 'd' : ''}>{s}</div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
-
-      <div className="pr">
-        {STEPS.map((s, i) => (
-          <div key={s} className={i <= step ? 'd' : ''}>{s}</div>
-        ))}
-      </div>
-    </>
-  )}
-</div>
-
 
       <div className="card" style={{ marginTop: 18 }}>
         <h3 style={{ fontSize: 20, marginBottom: 12 }}>Order Details</h3>

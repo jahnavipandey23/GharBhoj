@@ -17,7 +17,8 @@ const orderSchema = new mongoose.Schema(
     lines: [lineSchema],
     itemCount: Number,
     total: Number,
-    prepMinutes: Number,
+    prepMinutes: Number,                                       // cooking time of this order = its slowest dish
+    startedAt: { type: Date, default: null },                  // when the kitchen pressed Start (used for the countdown)
   },
   {
     timestamps: true,
