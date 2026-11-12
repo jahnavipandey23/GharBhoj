@@ -14,14 +14,34 @@ export async function nextOrderNo(day) {
   return counter.seq;
 }
 
-// ahead = today's earlier orders still waiting or being cooked.
+// Minutes of cooking still left for one order.
+// Waiting in the queue: the full cooking time of its slowest dish.
+// Already cooking: cooking time minus the minutes since the kitchen pressed Start.
+function remainingMinutes(order) {
+  const total = order.prepMinutes || 0;
+  if (order.status === 'prep' && order.startedAt) {
+    const elapsed = (Date.now() - new Date(order.startedAt).getTime()) / 60000;
+    return Math.max(0, total - elapsed);
+  }
+  return total;
+}
+
+// Estimated wait = (cooking time still left on all earlier orders / orders the kitchen cooks at once)
+//                  + this order's own remaining cooking time.
 // We calculate it every time instead of storing it, so it is never out of date.
 export async function queueInfo(order) {
-  const { perOrder, capacity } = await getSettings();
-  const ahead = await Order.countDocuments({ day: order.day, no: { $lt: order.no }, status: { $in: ['queue', 'prep'] } });
-  const waitMinutes = Math.ceil((ahead * perOrder) / capacity) + order.prepMinutes;
-  return { ahead, waitMinutes };
+  const { capacity } = await getSettings();
+  const ahead = await Order.find({
+    day: order.day,
+    no: { $lt: order.no },
+    status: { $in: ['queue', 'prep'] },
+  }).select('prepMinutes status startedAt').lean();
+
+  const aheadMinutes = ahead.reduce((sum, o) => sum + remainingMinutes(o), 0);
+  const waitMinutes = Math.ceil(aheadMinutes / Math.max(1, capacity) + remainingMinutes(order));
+  return { ahead: ahead.length, waitMinutes };
 }
+
 export async function currentQueuePosition(order) {
   if (order.status === 'done') return null;
 

@@ -5,7 +5,7 @@ import MenuItem from '../models/MenuItem.js';
 import Order from '../models/Order.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
-import { currentQueuePosition,nextOrderNo, queueInfo, todayKey } from '../services/queue.js';
+import { currentQueuePosition, nextOrderNo, queueInfo, todayKey } from '../services/queue.js';
 import { notifyOrdersChanged } from '../socket.js';
 
 const router = Router();
@@ -29,7 +29,7 @@ router.post('/orders', orderLimiter, asyncHandler(async (req, res) => {
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) throw new HttpError(400, 'Quantity must be 1 to 20');
     wanted.set(String(dishId), (wanted.get(String(dishId)) || 0) + quantity);
   }
-  // ...and take names and PRICES from our own database, not from the request.
+  // ...and take names, PRICES and COOKING TIMES from our own database, not from the request.
   const dishes = await MenuItem.find({ _id: { $in: [...wanted.keys()] } });
   if (dishes.length !== wanted.size) throw new HttpError(400, 'One of the dishes does not exist');
   const soldOut = dishes.find((d) => !d.available);
@@ -48,7 +48,7 @@ router.post('/orders', orderLimiter, asyncHandler(async (req, res) => {
     lines,
     itemCount: lines.reduce((sum, l) => sum + l.quantity, 0),
     total: subtotal + Math.round(subtotal * 0.05), // 5% GST
-    prepMinutes: Math.max(...lines.map((l) => l.prepMinutes)),
+    prepMinutes: Math.max(...lines.map((l) => l.prepMinutes)), // the slowest dish decides the cooking time
   });
 
   notifyOrdersChanged(); // tell the kitchen screen instantly
@@ -63,8 +63,6 @@ router.get('/orders/:id', asyncHandler(async (req, res) => {
 }));
 
 // ADMIN: today's orders, in queue order.
-
- // ADMIN: today's orders, in queue order.
 router.get('/admin/orders', requireAdmin, asyncHandler(async (req, res) => {
   const orders = await Order.find({ day: todayKey() }).sort({ no: 1 });
 
@@ -78,13 +76,13 @@ router.get('/admin/orders', requireAdmin, asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-
 // ADMIN: Start / Mark Ready / Complete.
 router.patch('/admin/orders/:id/status', requireAdmin, asyncHandler(async (req, res) => {
   const order = await Order.findOne({ publicId: req.params.id });
   if (!order) throw new HttpError(404, 'Order not found');
   if (NEXT_STATUS[order.status] !== req.body.status) throw new HttpError(400, `Cannot move from ${order.status} to ${req.body.status}`);
   order.status = req.body.status;
+  if (req.body.status === 'prep') order.startedAt = new Date(); // the cooking countdown starts now
   await order.save();
   notifyOrdersChanged(); // customers' pages update by themselves
   res.json(order);
