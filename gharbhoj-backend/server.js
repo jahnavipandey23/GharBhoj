@@ -11,6 +11,8 @@ import helmet from 'helmet';
 import { connectDB } from './src/config/db.js';
 import { initSocket } from './src/socket.js';
 import { errorHandler } from './src/middleware/errorHandler.js';
+import Order from './src/models/Order.js';
+import { cancelExpiredOrders } from './src/services/queue.js';
 import menuRoutes from './src/routes/menu.js';
 import orderRoutes from './src/routes/orders.js';
 import bookingRoutes from './src/routes/bookings.js';
@@ -34,4 +36,14 @@ const server = http.createServer(app); // Socket.io needs the raw http server, n
 initSocket(server);
 
 await connectDB();
+
+// One-time fix: ready orders saved before "readyAt" existed get their last-update time as readyAt,
+// so the 40 minute rule can apply to them too. Does nothing when there is nothing to fix.
+await Order.updateMany({ status: 'ready', readyAt: null }, [{ $set: { readyAt: '$updatedAt' } }]);
+
 server.listen(process.env.PORT || 4000, () => console.log(`API running on http://localhost:${process.env.PORT || 4000}`));
+
+// The server (not the browser) enforces the 40 minute pickup limit: check every 15 seconds.
+// The check is one atomic update, so it is safe even if it overlaps with an admin click.
+cancelExpiredOrders().catch(console.error);
+setInterval(() => cancelExpiredOrders().catch(console.error), 15_000);

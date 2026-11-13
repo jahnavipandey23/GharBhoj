@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from 'react';
 import { login as loginRequest } from '../api/auth';
-
+import { clearCache } from '../hooks/cache';
 const SessionContext = createContext(null);
 
 export function SessionProvider({ children }) {
@@ -32,7 +32,7 @@ const rememberOrder = (id) => {
     localStorage.setItem('gb_token', token);
     setIsAdmin(true);
   };
-  const logout = () => { localStorage.removeItem('gb_token'); setIsAdmin(false); };
+ const logout = () => { localStorage.removeItem('gb_token'); clearCache(); setIsAdmin(false); };
   const value = { table, welcomeOpen, openWelcome: () => setWelcomeOpen(true), closeWelcome: () => setWelcomeOpen(false), isAdmin, login, logout, myOrderId, rememberOrder };
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

@@ -2,10 +2,10 @@ import crypto from 'crypto';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import MenuItem from '../models/MenuItem.js';
-import Order from '../models/Order.js';
+import Order, { PICKUP_MINUTES } from '../models/Order.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
-import { currentQueuePosition, nextOrderNo, queueInfo, todayKey } from '../services/queue.js';
+import { cancelExpiredOrders, listWithPositions, nextOrderNo, pickupPosition, queueInfo, todayKey } from '../services/queue.js';
 import { notifyOrdersChanged } from '../socket.js';
 
 const router = Router();
@@ -13,8 +13,8 @@ const router = Router();
 // Stops one person from spamming hundreds of fake orders: max 10 per minute per IP.
 const orderLimiter = rateLimit({ windowMs: 60_000, limit: 10, message: { message: 'Too many orders, please wait a minute.' } });
 
-// An order may only move forward one step at a time. Anything else is rejected.
-const NEXT_STATUS = { queue: 'prep', prep: 'ready', ready: 'done' };
+// New status -> the ONLY status it may come from. Anything else is rejected.
+const PREVIOUS_STATUS = { prep: 'queue', ready: 'prep', done: 'ready' };
 
 // PUBLIC: customer places an order. Body: { customerName, table, items: [{ dishId, quantity }] }
 router.post('/orders', orderLimiter, asyncHandler(async (req, res) => {
@@ -55,36 +55,52 @@ router.post('/orders', orderLimiter, asyncHandler(async (req, res) => {
   res.status(201).json(order);
 }));
 
-// PUBLIC: the customer's live queue page. Adds { ahead, waitMinutes } to the order.
+// PUBLIC: the customer's live queue page. Only returns THIS customer's own order.
+// Adds { prepPosition, ahead, waitMinutes } (Preparation Queue) and { pickupPosition } (Pickup Waitlist).
 router.get('/orders/:id', asyncHandler(async (req, res) => {
   const order = await Order.findOne({ publicId: req.params.id });
   if (!order) throw new HttpError(404, 'Order not found');
-  res.json({ ...order.toJSON(), queuePosition: await currentQueuePosition(order), ...(await queueInfo(order)) });
+  res.json({
+    ...order.toJSON(),
+    ...(await queueInfo(order)),
+    pickupPosition: await pickupPosition(order),
+  });
 }));
 
-// ADMIN: today's orders, in queue order.
+// ADMIN: today's orders with both queue positions calculated.
 router.get('/admin/orders', requireAdmin, asyncHandler(async (req, res) => {
   const orders = await Order.find({ day: todayKey() }).sort({ no: 1 });
-
-  const result = await Promise.all(
-    orders.map(async (order) => ({
-      ...order.toJSON(),
-      queuePosition: await currentQueuePosition(order),
-    }))
-  );
-
-  res.json(result);
+  res.json(listWithPositions(orders));
 }));
 
-// ADMIN: Start / Mark Ready / Complete.
+// ADMIN: Start Preparing (queue->prep), Mark Ready (prep->ready), Mark Collected (ready->done).
+// ONE atomic update: "change it only if it is still in the expected status". If two requests arrive together,
+// exactly one wins and the other gets a clear error, so an order can never skip or repeat a step.
 router.patch('/admin/orders/:id/status', requireAdmin, asyncHandler(async (req, res) => {
-  const order = await Order.findOne({ publicId: req.params.id });
-  if (!order) throw new HttpError(404, 'Order not found');
-  if (NEXT_STATUS[order.status] !== req.body.status) throw new HttpError(400, `Cannot move from ${order.status} to ${req.body.status}`);
-  order.status = req.body.status;
-  if (req.body.status === 'prep') order.startedAt = new Date(); // the cooking countdown starts now
-  await order.save();
-  notifyOrdersChanged(); // customers' pages update by themselves
+  const to = req.body.status;
+  const from = PREVIOUS_STATUS[to];
+  if (!from) throw new HttpError(400, 'Invalid status');
+
+  const set = { status: to };
+  if (to === 'prep') set.startedAt = new Date();   // cooking countdown starts
+  if (to === 'ready') set.readyAt = new Date();    // 40 minute pickup countdown starts
+
+  const filter = { publicId: req.params.id, status: from };
+  if (to === 'done') filter.readyAt = { $gt: new Date(Date.now() - PICKUP_MINUTES * 60_000) }; // too late to collect
+
+  const order = await Order.findOneAndUpdate(filter, { $set: set }, { new: true });
+
+  if (!order) {
+    const current = await Order.findOne({ publicId: req.params.id });
+    if (!current) throw new HttpError(404, 'Order not found');
+    if (to === 'done' && current.status === 'ready') {
+      await cancelExpiredOrders(); // its 40 minutes ran out: cancel it now instead of waiting for the next check
+      throw new HttpError(409, `Pickup time (${PICKUP_MINUTES} min) is over, so this order was cancelled`);
+    }
+    throw new HttpError(409, `Cannot move from ${current.status} to ${to}`);
+  }
+
+  notifyOrdersChanged(); // both queues refresh on every screen
   res.json(order);
 }));
 

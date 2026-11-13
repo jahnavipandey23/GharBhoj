@@ -10,6 +10,7 @@ const router = Router();
 // Customers = people grouped by the name they gave when ordering. -> [{ name, orders, spent }]
 router.get('/admin/customers', requireAdmin, asyncHandler(async (req, res) => {
   const rows = await Order.aggregate([
+    { $match: { status: { $ne: 'cancelled' } } },                                         // cancelled orders are not real sales
     { $group: { _id: '$customerName', orders: { $sum: 1 }, spent: { $sum: '$total' } } }, // one row per name
     { $sort: { spent: -1 } },
     { $limit: 100 },
