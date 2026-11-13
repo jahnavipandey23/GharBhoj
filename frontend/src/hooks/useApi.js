@@ -1,27 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getMenu } from '../api/menu';
 import { getOrder, listOrders, subscribeToOrders } from '../api/orders';
+import { cache } from './cache';
 
-// Runs `fetcher`, tracks loading/error, and (if live) refetches whenever an order changes.
-function useResource(fetcher, deps, live) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Shows cached data instantly. Live resources (orders) also refetch when the server says an order changed,
+// and every 15 seconds as a backup in case the live connection drops.
+function useResource(key, fetcher, live) {
+  const [data, setData] = useState(() => cache.get(key)?.data ?? null);
+  const [loading, setLoading] = useState(() => !cache.get(key));
   const [error, setError] = useState(null);
 
   const load = useCallback(
-    () => fetcher().then((d) => { setData(d); setError(null); }).catch(setError).finally(() => setLoading(false)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    deps
+    () => fetcher()
+      .then((d) => { cache.set(key, { data: d, at: Date.now() }); setData(d); setError(null); })
+      .catch(setError)
+      .finally(() => setLoading(false)),
+    [key] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   useEffect(() => {
-    load();
-    return live ? subscribeToOrders(load) : undefined;
-  }, [load, live]);
+    const c = cache.get(key);
+    setData(c?.data ?? null);
+    setLoading(!c);
+    if (!c || live) load(); // first visit, or live data: always refresh quietly
+
+    if (!live) return undefined;
+    const unsubscribe = subscribeToOrders(load);
+    const timer = setInterval(() => { if (!document.hidden) load(); }, 15_000); // backup refresh
+    return () => { unsubscribe(); clearInterval(timer); };
+  }, [key, live, load]);
 
   return { data, loading, error, reload: load };
 }
 
-export const useMenu = () => useResource(getMenu, [], false);
-export const useOrders = () => useResource(listOrders, [], true);
-export const useOrder = (id) => useResource(() => getOrder(id), [id], true);
+export const useMenu = () => useResource('menu', getMenu, false);
+export const useOrders = () => useResource('orders', listOrders, true);
+export const useOrder = (id) => useResource(`order:${id}`, () => getOrder(id), true);
