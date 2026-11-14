@@ -29,8 +29,6 @@ function remainingMinutes(order) {
   return total;
 }
 
-// PREPARATION QUEUE: position + estimated wait. Only earlier queue/prep orders count.
-// A ready, done or cancelled order is not in this queue, so it can never change these numbers.
 export async function queueInfo(order) {
   if (!PREP_STATUSES.includes(order.status)) return { ahead: 0, waitMinutes: 0, prepPosition: null };
 

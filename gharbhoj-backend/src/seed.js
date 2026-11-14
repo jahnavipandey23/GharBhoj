@@ -15,8 +15,8 @@ const MENU = [
   { category: 'Breads', name: 'Garlic Naan', description: 'Soft, fresh and flavourful.', price: 60, prepMinutes: 4, image: '/images/naan.jpg' },
   { category: 'Main Course', name: 'Chole Bhature', description: 'A North Indian classic.', price: 140, prepMinutes: 9, image: '/images/chole.jpg' },
   { category: 'Starters', name: 'Masala Dosa', description: 'Crispy, hearty and delicious.', price: 120, prepMinutes: 8, image: '/images/dosa.jpg' },
-  { category: 'Desserts', name: 'Gulab Jamun', description: 'Two pieces, served warm.', price: 80, prepMinutes: 2, image: null },
-  { category: 'Beverages', name: 'Masala Chai', description: 'Ginger and elaichi.', price: 40, prepMinutes: 3, image: null },
+  { category: 'Desserts', name: 'Gulab Jamun', description: 'Two pieces, served warm.', price: 80, prepMinutes: 2, image:'/images/gulab.jpg' },
+  { category: 'Beverages', name: 'Masala Chai', description: 'Ginger and elaichi.', price: 40, prepMinutes: 3, image:'/images/chai.jpg'},
 ];
 
 await connectDB();
