@@ -340,7 +340,7 @@ This README describes the code in the supplied project ZIP. A few boundaries are
 - Confirm the MongoDB service is running.
 - Check `MONGO_URI` in `gharbhoj-backend/.env`.
 - For Atlas, verify the database username/password and Network Access configuration.
-- - Ensure the MongoDB connection string includes the correct database name.
+- Ensure the MongoDB connection string includes the correct database name.
 
 ### Frontend cannot reach the backend
 
