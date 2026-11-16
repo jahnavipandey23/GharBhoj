@@ -276,3 +276,5 @@ input,select{width:100%;padding:11px 12px;border:1px solid var(--ln);border-radi
     height: 260px;
   }
 }
+
+.bd.pending{background:#fff0d4;color:#8a5600}.bd.verified{background:#e0f2e4;color:#286a3c}.bd.rejected{background:#f6dada;color:#b3261e}

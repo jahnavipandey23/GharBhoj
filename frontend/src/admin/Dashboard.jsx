@@ -9,8 +9,8 @@ export default function Dashboard() {
   const { data } = useOrders();
   const { data: bookings } = useResourceOnce(listBookings);
   const orders = data || [];
-  const active = orders.filter((o) => o.status === 'queue' || o.status === 'prep').length;
-  const revenue = orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0); // cancelled = no sale
+  const active = orders.filter((o) => o.status === 'verified' || o.status === 'queue' || o.status === 'prep').length;
+  const revenue = orders.filter((o) => !['cancelled', 'rejected', 'pending'].includes(o.status)).reduce((s, o) => s + o.total, 0); // cancelled = no sale
 
   return (
     <>
@@ -19,6 +19,7 @@ export default function Dashboard() {
         <div><b>{orders.length}</b>Orders today</div>
         <div><b>{inr(revenue)}</b>Revenue</div>
         <div><b>{active}</b>Active queue</div>
+        <div><b>{orders.filter((o) => o.status === 'pending').length}</b>Pending Verification</div>
         <div><b>{(bookings || []).length}</b>Bookings</div>
       </div>
       <h3 style={{ fontSize: 20, margin: '24px 0 10px' }}>Recent orders</h3>

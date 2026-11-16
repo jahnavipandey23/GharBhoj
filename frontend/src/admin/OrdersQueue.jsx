@@ -17,10 +17,12 @@ export default function OrdersQueue() {
   const [message, setMessage] = useState('');
   const orders = data || [];
 
-  const prep = orders.filter((o) => o.status === 'queue' || o.status === 'prep').sort(byPosition('prepPosition'));
+  const pending = orders.filter((o) => o.status === 'pending');
+  const prep = orders.filter((o) => o.status === 'verified' || o.status === 'queue' || o.status === 'prep').sort(byPosition('prepPosition'));
   const ready = orders.filter((o) => o.status === 'ready').sort(byPosition('pickupPosition'));
   const done = orders.filter((o) => o.status === 'done');
   const cancelled = orders.filter((o) => o.status === 'cancelled');
+  const rejected = orders.filter((o) => o.status === 'rejected');
   const now = useNow(ready.length > 0); // ticks every second only when there is a pickup countdown to show
 
   const move = async (id, status) => {
@@ -30,7 +32,7 @@ export default function OrdersQueue() {
     finally { setBusy(null); reload(); }
   };
 
-  const prepAction = (o) => (o.status === 'queue'
+  const prepAction = (o) => (o.status === 'verified' || o.status === 'queue'
     ? <button className="btn sm" disabled={busy === o.id} onClick={() => move(o.id, 'prep')}><Icon name="play" size={12} /> Start Preparing</button>
     : <button className="btn o sm" style={{ color: 'var(--mr)', borderColor: 'var(--mr)' }} disabled={busy === o.id} onClick={() => move(o.id, 'ready')}><Icon name="ok" size={12} /> Mark Ready</button>);
 
@@ -48,6 +50,19 @@ export default function OrdersQueue() {
         </div>
       </div>
     {error && <p className="err" role="alert">Could not load orders: {error.message}</p>}
+
+      <h3 style={title}>Pending Staff Verification ({pending.length})</h3>
+      <p className="note">Verify customers before they enter the active preparation queue.</p>
+      <DataTable
+        head={['Request', 'Customer', 'Items', 'Total', 'Status', 'Actions']}
+        rows={pending.map((o) => [
+          `#${o.no}`, o.name, itemsText(o), inr(o.total), <StatusBadge status={o.status} />,
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn sm" disabled={busy === o.id} onClick={() => move(o.id, 'verified')}>Verify</button>
+            <button className="btn o sm" disabled={busy === o.id} onClick={() => move(o.id, 'rejected')}>Reject</button>
+          </div>,
+        ])}
+      />
 
       <h3 style={title}>Preparation Queue ({prep.length})</h3>
       <p className="note">Orders waiting to be cooked or being cooked. Token never changes; position moves up as orders become ready.</p>
@@ -79,7 +94,12 @@ export default function OrdersQueue() {
         rows={cancelled.map((o) => [`#${o.no}`, o.name, itemsText(o), inr(o.total), o.cancelledAt ? formatDateTime(o.cancelledAt) : '-', <StatusBadge status={o.status} />])}
       />
 
+      <h3 style={title}>Rejected Requests ({rejected.length})</h3>
+      <DataTable head={['Request', 'Customer', 'Items', 'Total', 'Status']} rows={rejected.map((o) => [`#${o.no}`, o.name, itemsText(o), inr(o.total), <StatusBadge status={o.status} />])} />
+
       <div className="stats">
+        <div><b>{pending.length}</b>Pending Verification</div>
+        <div><b>{orders.filter((o) => o.status === 'verified').length}</b>Verified</div>
         <div><b>{orders.filter((o) => o.status === 'queue').length}</b>In Queue</div>
         <div><b>{orders.filter((o) => o.status === 'prep').length}</b>Preparing</div>
         <div><b>{ready.length}</b>Ready for pickup</div>

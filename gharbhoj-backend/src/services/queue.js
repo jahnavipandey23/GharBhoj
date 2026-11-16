@@ -7,7 +7,7 @@ import Order, { PICKUP_MINUTES } from '../models/Order.js';
 import { getSettings } from '../models/Setting.js';
 import { notifyOrdersChanged } from '../socket.js';
 
-const PREP_STATUSES = ['queue', 'prep'];
+const PREP_STATUSES = ['verified', 'queue', 'prep'];
 
 // Today's date in Indian time as "2026-10-22". We use IST so the day changes at midnight in India, not UTC.
 export const todayKey = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });

@@ -7,8 +7,8 @@ import { useNow } from '../hooks/useNow';
 import { useSession } from '../context/SessionContext';
 import { formatCountdown, formatDateTime, inr } from '../utils/format';
 
-const STEPS = ['Order Received', 'In Queue', 'Preparing', 'Ready'];
-const STEP_INDEX = { queue: 1, prep: 2, ready: 3 };
+const STEPS = ['Pending', 'Verified', 'Preparing', 'Ready'];
+const STEP_INDEX = { pending: 0, verified: 1, queue: 1, prep: 2, ready: 3 };
 
 export default function QueueStatus() {
   const { id } = useParams();
@@ -17,7 +17,9 @@ export default function QueueStatus() {
   const { data: order, loading, error, reload } = useOrder(id); // refetches itself on every live update
 
   const status = order?.status;
-  const inPrep = status === 'queue' || status === 'prep';
+  const isPending = status === 'pending';
+  const isVerified = status === 'verified' || status === 'queue';
+  const inPrep = isVerified || status === 'prep';
   const now = useNow(status === 'ready'); // 1-second tick only while the pickup countdown is visible
 
   // The wait time counts down while food is being prepared, so refresh quietly every 30 seconds.
@@ -33,12 +35,16 @@ export default function QueueStatus() {
   const isReady = status === 'ready';
   const isDone = status === 'done';
   const isCancelled = status === 'cancelled';
+  const isRejected = status === 'rejected';
   const step = STEP_INDEX[status];
   const wait = Math.max(1, order.waitMinutes);
   const pickupMsLeft = isReady && order.pickupDeadline ? new Date(order.pickupDeadline).getTime() - now : 0;
 
-  const heading = isDone ? 'Order Completed!' : isCancelled ? 'Order Cancelled' : isReady ? 'Your Order is Ready!' : 'Your Order is in Queue';
-  const subheading = isDone ? 'Thank you for ordering with GharBhoj!'
+  const heading = isPending ? 'Awaiting Staff Verification' : isRejected ? 'Order Request Rejected' : isVerified ? 'Order Verified!' : isDone ? 'Order Completed!' : isCancelled ? 'Order Cancelled' : isReady ? 'Your Order is Ready!' : 'Your Order is in Queue';
+  const subheading = isPending ? 'Please visit the counter for staff verification. Your request is not yet in the active queue.'
+    : isRejected ? 'Staff did not approve this request. Please contact the counter.'
+    : isVerified ? 'Staff has verified your order. You are now in the preparation queue.'
+    : isDone ? 'Thank you for ordering with GharBhoj!'
     : isCancelled ? 'This order was not collected in time.'
     : isReady ? 'Please collect your food from the counter.'
     : 'We’ll keep you updated in real time. You can also track this page anytime.';
@@ -57,6 +63,13 @@ export default function QueueStatus() {
           </div>
         )}
 
+        {isRejected && (
+          <div style={{ textAlign: 'center', padding: '24px 12px' }}>
+            <h2>Request Rejected</h2>
+            <p className="note">Please contact restaurant staff if you need assistance.</p>
+          </div>
+        )}
+
         {isCancelled && (
           <div style={{ textAlign: 'center', padding: '24px 12px' }}>
             <Icon name="clock" size={42} />
@@ -66,11 +79,11 @@ export default function QueueStatus() {
           </div>
         )}
 
-        {(inPrep || isReady) && (
+        {(isPending || inPrep || isReady) && (
           <>
             <div className="vs">
               <div>
-                <div className="note">Your Token Number</div>
+                <div className="note">{isPending ? 'Your Request Number (not yet in queue)' : 'Your Token Number'}</div>
                 <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 6 }}>
                   <div className="big">#{order.no}</div>
                   <StatusBadge status={status} />
@@ -128,7 +141,7 @@ export default function QueueStatus() {
             <div className="r t"><span>Total</span><span>{inr(order.total)}</span></div>
           </div>
         </div>
-        <p className="note" style={{ margin: '10px 0 0' }}>Pay at the counter when your order is ready.</p>
+        <p className="note" style={{ margin: '10px 0 0' }}>{isPending ? 'Staff verification required before kitchen preparation.' : 'Pay at the counter when your order is ready.'}</p>
       </div>
     </div>
   );

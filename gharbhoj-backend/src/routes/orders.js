@@ -14,7 +14,7 @@ const router = Router();
 const orderLimiter = rateLimit({ windowMs: 60_000, limit: 10, message: { message: 'Too many orders, please wait a minute.' } });
 
 // New status -> the ONLY status it may come from. Anything else is rejected.
-const PREVIOUS_STATUS = { prep: 'queue', ready: 'prep', done: 'ready' };
+const PREVIOUS_STATUS = { verified: 'pending', prep: 'verified', ready: 'prep', done: 'ready', rejected: 'pending' };
 
 // PUBLIC: customer places an order. Body: { customerName, table, items: [{ dishId, quantity }] }
 router.post('/orders', orderLimiter, asyncHandler(async (req, res) => {
@@ -48,6 +48,7 @@ router.post('/orders', orderLimiter, asyncHandler(async (req, res) => {
     lines,
     itemCount: lines.reduce((sum, l) => sum + l.quantity, 0),
     total: subtotal + Math.round(subtotal * 0.05), // 5% GST
+    status: 'pending',
     prepMinutes: Math.max(...lines.map((l) => l.prepMinutes)), // the slowest dish decides the cooking time
   });
 
@@ -82,6 +83,8 @@ router.patch('/admin/orders/:id/status', requireAdmin, asyncHandler(async (req, 
   if (!from) throw new HttpError(400, 'Invalid status');
 
   const set = { status: to };
+  if (to === 'verified') set.verifiedAt = new Date();
+  if (to === 'rejected') set.rejectedAt = new Date();
   if (to === 'prep') set.startedAt = new Date();   // cooking countdown starts
   if (to === 'ready') set.readyAt = new Date();    // 40 minute pickup countdown starts
 

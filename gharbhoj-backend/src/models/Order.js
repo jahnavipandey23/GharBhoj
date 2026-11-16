@@ -17,11 +17,13 @@ const orderSchema = new mongoose.Schema(
     customerName: { type: String, required: true },
     table: { type: String, default: '' },
     // queue + prep  = Preparation Queue,  ready = Pickup Waitlist,  done / cancelled = finished
-    status: { type: String, enum: ['queue', 'prep', 'ready', 'done', 'cancelled'], default: 'queue' },
+    status: { type: String, enum: ['pending', 'verified', 'queue', 'prep', 'ready', 'done', 'cancelled', 'rejected'], default: 'pending' },
     lines: [lineSchema],
     itemCount: Number,
     total: Number,
     prepMinutes: Number,                                       // cooking time of this order = its slowest dish
+    verifiedAt: { type: Date, default: null },
+    rejectedAt: { type: Date, default: null },
     startedAt: { type: Date, default: null },                  // kitchen pressed Start
     readyAt: { type: Date, default: null },                    // order entered the Pickup Waitlist (starts the 40 min)
     cancelledAt: { type: Date, default: null },                // not collected in time
@@ -32,6 +34,8 @@ const orderSchema = new mongoose.Schema(
       transform: (doc, r) => ({
         id: r.publicId, no: r.no, name: r.customerName, table: r.table, status: r.status,
         items: r.itemCount, total: r.total, lines: r.lines, prepMinutes: r.prepMinutes,
+        verifiedAt: r.verifiedAt || null,
+        rejectedAt: r.rejectedAt || null,
         startedAt: r.startedAt || null,
         readyAt: r.readyAt || null,
         cancelledAt: r.cancelledAt || null,
