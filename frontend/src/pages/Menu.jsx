@@ -13,14 +13,17 @@ export default function Menu() {
   const { items, count, change } = useCart();
   const [category, setCategory] = useState('All');
   const [lastAdded, setLastAdded] = useState(null);
+  const [search, setSearch] = useState('');
   const [toast, setToast] = useState('');
   const timer = useRef(null);
   const navigate = useNavigate();
 
-  const dishes = (menu || []).filter(
-    (d) => category === 'All' || d.category === category
-  );
-
+  const q = search.trim().toLowerCase();
+const dishes = (menu || []).filter(
+  (d) =>
+    (category === 'All' || d.category === category) &&
+    (!q || d.name.toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q))
+);
   const cart = summarize(menu || [], items);
 
   useEffect(() => {
@@ -156,7 +159,14 @@ export default function Menu() {
           authentic ingredients.
         </p>
       </div>
-
+<input
+  className="search"
+  type="search"
+  placeholder="Search dishes…"
+  aria-label="Search dishes"
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+/>
       <div className="tabs">
         {CATEGORIES.map((c) => (
           <button
