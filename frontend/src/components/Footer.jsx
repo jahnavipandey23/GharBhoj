@@ -22,6 +22,6 @@ export default function Footer() {
           © {new Date().getFullYear()} GharBhoj. All rights reserved.
         </p>
       </div>
-       </footer>
+      </footer>
   );
 }
