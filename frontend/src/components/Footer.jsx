@@ -17,6 +17,11 @@ export default function Footer() {
           </p>
         </div>
       </div>
-    </footer>
+      <div style={{ textAlign: 'center', padding: '12px', borderTop: '1px solid var(--ln)' }}>
+        <p className="note">
+          © {new Date().getFullYear()} GharBhoj. All rights reserved.
+        </p>
+      </div>
+       </footer>
   );
 }
